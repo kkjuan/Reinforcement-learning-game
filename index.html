@@ -49,7 +49,7 @@ h1, h2 {
 }
 
 .start { 
-    background-color: #90ee90;
+    background-color: #90ee90 !important;
 }
 
 .end { 
@@ -63,7 +63,6 @@ h1, h2 {
 }
 
 .path { 
-    background-color: #ffd700;
     animation: pathAnimation 1s ease-out;
 }
 
@@ -203,7 +202,7 @@ button:hover, select:hover {
             <li>點擊「創建遊戲板」按鈕生成新的遊戲板。</li>
             <li>點擊「開始學習」按鈕，AI 將開始尋找最佳路徑。</li>
             <li>觀察 AI 如何通過強化學習找到從起點（綠色）到終點（紅色）的最佳路徑。</li>
-            <li>學習完成後，最佳路徑將以黃色顯示。</li>
+            <li>每次學習完成後，最佳路徑將以不同顏色顯示。</li>
             <li>如果路徑被障礙物完全阻擋，系統將顯示無法到達的訊息。</li>
         </ul>
     </div>
@@ -221,7 +220,7 @@ button:hover, select:hover {
             <span>障礙物</span>
         </div>
         <div class="legend-item">
-            <div class="legend-color path"></div>
+            <div class="legend-color" style="background-color: #ffd700;"></div>
             <span>最佳路徑</span>
         </div>
         <div class="legend-item">
@@ -398,6 +397,7 @@ class QLearning {
 
 // UI and game logic
 let env, qLearning, boardElement, statusElement;
+let pathCount = 0;
 
 function createGameBoard() {
     const size = parseInt(document.getElementById('grid-size').value);
@@ -431,6 +431,8 @@ function createGameBoard() {
     } else {
         document.getElementById('start-learning').disabled = false;
     }
+
+    pathCount = 0;
 }
 
 function startLearning() {
@@ -457,11 +459,15 @@ function startLearning() {
 
 function visualizePath(path) {
     const cells = boardElement.children;
+    const pathColor = getRandomColor();
+    pathCount++;
+
     path.forEach((state, index) => {
         setTimeout(() => {
             const [x, y] = [Math.floor(state / env.size), state % env.size];
             if (index > 0 && index < path.length - 1) {
                 cells[state].classList.add('path');
+                cells[state].style.backgroundColor = pathColor;
             }
             if (index > 0) {
                 const prevState = path[index - 1];
@@ -473,6 +479,21 @@ function visualizePath(path) {
             createRippleEffect({ target: cells[state] });
         }, index * 300);
     });
+
+    // Update legend with new path color
+    const legend = document.querySelector('.legend');
+    const newLegendItem = document.createElement('div');
+    newLegendItem.classList.add('legend-item');
+    newLegendItem.innerHTML = `
+        <div class="legend-color" style="background-color: ${pathColor};"></div>
+        <span>路徑 ${pathCount}</span>
+    `;
+    legend.appendChild(newLegendItem);
+}
+
+function getRandomColor() {
+    const hue = Math.floor(Math.random() * 360);
+    return `hsl(${hue}, 70%, 50%)`;
 }
 
 function createRippleEffect(event) {
