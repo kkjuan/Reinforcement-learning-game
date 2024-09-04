@@ -39,13 +39,67 @@ h1, h2 {
     justify-content: center;
     align-items: center;
     font-size: 12px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
 }
 
-.start { background-color: #90ee90; }
-.end { background-color: #ff6347; }
-.obstacle { background-color: #808080; }
-.path { background-color: #ffd700; }
-.current { background-color: #32cd32; }
+.cell::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0) 70%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.cell:hover::before {
+    opacity: 1;
+}
+
+.start { 
+    background-color: #90ee90;
+    animation: pulse 2s infinite;
+}
+
+.end { 
+    background-color: #ff6347;
+    animation: pulse 2s infinite;
+}
+
+.obstacle { 
+    background-color: #808080;
+    transform: scale(0.95);
+}
+
+.path { 
+    background-color: #ffd700;
+    animation: pathAnimation 0.5s ease-out;
+}
+
+.current { 
+    background-color: #32cd32;
+    animation: currentAnimation 0.5s infinite alternate;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+@keyframes pathAnimation {
+    from { transform: scale(0); }
+    to { transform: scale(1); }
+}
+
+@keyframes currentAnimation {
+    from { transform: scale(1); }
+    to { transform: scale(1.1); }
+}
 
 button, select {
     padding: 10px 20px;
@@ -56,15 +110,23 @@ button, select {
     border-radius: 5px;
     cursor: pointer;
     margin: 10px;
+    transition: background-color 0.3s ease, transform 0.1s ease;
 }
 
 button:hover, select:hover {
     background-color: #36648b;
+    transform: translateY(-2px);
+}
+
+button:active, select:active {
+    transform: translateY(1px);
 }
 
 #status {
     margin-top: 20px;
     font-weight: bold;
+    color: #333;
+    transition: all 0.3s ease;
 }
 
 .instructions {
@@ -75,6 +137,13 @@ button:hover, select:hover {
     text-align: left;
     max-width: 600px;
     width: 100%;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.instructions:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 8px rgba(0,0,0,0.15);
 }
 
 .instructions ul {
@@ -92,12 +161,18 @@ button:hover, select:hover {
     display: flex;
     align-items: center;
     margin: 5px 10px;
+    transition: transform 0.3s ease;
+}
+
+.legend-item:hover {
+    transform: scale(1.05);
 }
 
 .legend-color {
     width: 20px;
     height: 20px;
     margin-right: 5px;
+    border-radius: 50%;
 }
 
 .controls {
@@ -106,6 +181,19 @@ button:hover, select:hover {
     align-items: center;
     flex-wrap: wrap;
     margin-bottom: 20px;
+}
+
+.error-message {
+    color: #ff0000;
+    font-weight: bold;
+    animation: shake 0.82s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+@keyframes shake {
+    10%, 90% { transform: translate3d(-1px, 0, 0); }
+    20%, 80% { transform: translate3d(2px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+    40%, 60% { transform: translate3d(4px, 0, 0); }
 }
 </style></head><body>
 <div class="game-container">
@@ -118,6 +206,7 @@ button:hover, select:hover {
             <li>點擊「開始學習」按鈕，AI 將開始尋找最佳路徑。</li>
             <li>觀察 AI 如何通過強化學習找到從起點（綠色）到終點（紅色）的最佳路徑。</li>
             <li>學習完成後，最佳路徑將以黃色顯示。</li>
+            <li>如果路徑被障礙物完全阻擋，系統將顯示無法到達的訊息。</li>
         </ul>
     </div>
     <div class="legend">
@@ -220,6 +309,29 @@ class Environment {
         const done = (newX === this.end[0] && newY === this.end[1]);
         return [newState, reward, done];
     }
+
+    isReachable() {
+        const visited = new Set();
+        const queue = [this.getState(this.start)];
+
+        while (queue.length > 0) {
+            const currentState = queue.shift();
+            if (currentState === this.getState(this.end)) {
+                return true;
+            }
+
+            if (!visited.has(currentState)) {
+                visited.add(currentState);
+                const validActions = this.getValidActions(currentState);
+                for (const action of validActions) {
+                    const [nextState] = this.step(currentState, action);
+                    queue.push(nextState);
+                }
+            }
+        }
+
+        return false;
+    }
 }
 
 // Q-learning Algorithm
@@ -274,6 +386,10 @@ class QLearning {
             const [nextState] = this.env.step(state, action);
             path.push(nextState);
             state = nextState;
+            if (path.length > this.env.size * this.env.size) {
+                // If the path is longer than the total number of cells, assume no path exists
+                return null;
+            }
         }
         return path;
     }
@@ -301,11 +417,23 @@ function createGameBoard() {
             boardElement.appendChild(cell);
         }
     }
+
+    statusElement = document.getElementById('status');
+    statusElement.textContent = '';
+    statusElement.classList.remove('error-message');
+
+    if (!env.isReachable()) {
+        statusElement.textContent = '無法到達終點！請重新創建遊戲板。';
+        statusElement.classList.add('error-message');
+        document.getElementById('start-learning').disabled = true;
+    } else {
+        document.getElementById('start-learning').disabled = false;
+    }
 }
 
 function startLearning() {
-    statusElement = document.getElementById('status');
     statusElement.textContent = '學習中...';
+    statusElement.classList.remove('error-message');
     
     setTimeout(() => {
         qLearning.learn(10000, (episode) => {
@@ -315,8 +443,13 @@ function startLearning() {
         });
 
         const bestPath = qLearning.getBestPath();
-        visualizePath(bestPath);
-        statusElement.textContent = '學習完成！路徑已找到。';
+        if (bestPath) {
+            visualizePath(bestPath);
+            statusElement.textContent = '學習完成！路徑已找到。';
+        } else {
+            statusElement.textContent = '無法找到有效路徑到達終點。';
+            statusElement.classList.add('error-message');
+        }
     }, 100);
 }
 
