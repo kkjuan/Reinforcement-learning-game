@@ -28,11 +28,15 @@ h1, h2 {
     display: grid;
     grid-gap: 2px;
     margin: 20px auto;
+    position: relative;
+    overflow: hidden;
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
 }
 
 .cell {
-    width: 40px;
-    height: 40px;
+    width: 30px;
+    height: 30px;
     background-color: #fff;
     border: 1px solid #ccc;
     display: flex;
@@ -44,30 +48,13 @@ h1, h2 {
     overflow: hidden;
 }
 
-.cell::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: radial-gradient(circle, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0) 70%);
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-.cell:hover::before {
-    opacity: 1;
-}
-
 .start { 
     background-color: #90ee90;
-    animation: pulse 2s infinite;
 }
 
 .end { 
     background-color: #ff6347;
-    animation: pulse 2s infinite;
+    animation: pulse 4s infinite;
 }
 
 .obstacle { 
@@ -77,12 +64,12 @@ h1, h2 {
 
 .path { 
     background-color: #ffd700;
-    animation: pathAnimation 0.5s ease-out;
+    animation: pathAnimation 1s ease-out;
 }
 
 .current { 
     background-color: #32cd32;
-    animation: currentAnimation 0.5s infinite alternate;
+    animation: currentAnimation 2s infinite alternate;
 }
 
 @keyframes pulse {
@@ -92,13 +79,13 @@ h1, h2 {
 }
 
 @keyframes pathAnimation {
-    from { transform: scale(0); }
-    to { transform: scale(1); }
+    0% { transform: scale(0); }
+    100% { transform: scale(1); }
 }
 
 @keyframes currentAnimation {
-    from { transform: scale(1); }
-    to { transform: scale(1.1); }
+    0% { transform: scale(1); }
+    100% { transform: scale(1.1); }
 }
 
 button, select {
@@ -110,22 +97,21 @@ button, select {
     border-radius: 5px;
     cursor: pointer;
     margin: 10px;
-    transition: background-color 0.3s ease, transform 0.1s ease;
+    transition: all 0.3s ease;
 }
 
 button:hover, select:hover {
     background-color: #36648b;
     transform: translateY(-2px);
-}
-
-button:active, select:active {
-    transform: translateY(1px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 #status {
     margin-top: 20px;
     font-weight: bold;
     color: #333;
+    padding: 10px;
+    border-radius: 5px;
     transition: all 0.3s ease;
 }
 
@@ -137,13 +123,7 @@ button:active, select:active {
     text-align: left;
     max-width: 600px;
     width: 100%;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    transition: all 0.3s ease;
-}
-
-.instructions:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 6px 8px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .instructions ul {
@@ -161,11 +141,7 @@ button:active, select:active {
     display: flex;
     align-items: center;
     margin: 5px 10px;
-    transition: transform 0.3s ease;
-}
-
-.legend-item:hover {
-    transform: scale(1.05);
+    animation: fadeIn 2s;
 }
 
 .legend-color {
@@ -173,6 +149,7 @@ button:active, select:active {
     height: 20px;
     margin-right: 5px;
     border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .controls {
@@ -186,14 +163,35 @@ button:active, select:active {
 .error-message {
     color: #ff0000;
     font-weight: bold;
-    animation: shake 0.82s cubic-bezier(.36,.07,.19,.97) both;
+    animation: shake 1s;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 @keyframes shake {
-    10%, 90% { transform: translate3d(-1px, 0, 0); }
-    20%, 80% { transform: translate3d(2px, 0, 0); }
-    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
-    40%, 60% { transform: translate3d(4px, 0, 0); }
+    0% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    50% { transform: translateX(5px); }
+    75% { transform: translateX(-5px); }
+    100% { transform: translateX(0); }
+}
+
+.ripple {
+    position: absolute;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.7);
+    transform: scale(0);
+    animation: ripple 2s linear;
+}
+
+@keyframes ripple {
+    to {
+        transform: scale(4);
+        opacity: 0;
+    }
 }
 </style></head><body>
 <div class="game-container">
@@ -201,7 +199,7 @@ button:active, select:active {
     <div class="instructions">
         <h2>遊戲使用方法</h2>
         <ul>
-            <li>選擇網格大小（5x5、7x7 或 10x10）。</li>
+            <li>選擇網格大小（5x5 到 20x20）。</li>
             <li>點擊「創建遊戲板」按鈕生成新的遊戲板。</li>
             <li>點擊「開始學習」按鈕，AI 將開始尋找最佳路徑。</li>
             <li>觀察 AI 如何通過強化學習找到從起點（綠色）到終點（紅色）的最佳路徑。</li>
@@ -236,6 +234,9 @@ button:active, select:active {
             <option value="5">5x5</option>
             <option value="7">7x7</option>
             <option value="10">10x10</option>
+            <option value="12">12x12</option>
+            <option value="15">15x15</option>
+            <option value="20">20x20</option>
         </select>
         <button id="create-board">創建遊戲板</button>
         <button id="start-learning">開始學習</button>
@@ -404,7 +405,7 @@ function createGameBoard() {
     qLearning = new QLearning(env);
 
     boardElement = document.getElementById('game-board');
-    boardElement.style.gridTemplateColumns = `repeat(${size}, 40px)`;
+    boardElement.style.gridTemplateColumns = `repeat(${size}, 30px)`;
     boardElement.innerHTML = '';
 
     for (let i = 0; i < size; i++) {
@@ -414,6 +415,7 @@ function createGameBoard() {
             if (i === env.start[0] && j === env.start[1]) cell.classList.add('start');
             if (i === env.end[0] && j === env.end[1]) cell.classList.add('end');
             if (env.board[i][j] === 3) cell.classList.add('obstacle');
+            cell.addEventListener('click', createRippleEffect);
             boardElement.appendChild(cell);
         }
     }
@@ -458,7 +460,9 @@ function visualizePath(path) {
     path.forEach((state, index) => {
         setTimeout(() => {
             const [x, y] = [Math.floor(state / env.size), state % env.size];
-            cells[state].classList.add(index === path.length - 1 ? 'end' : 'path');
+            if (index > 0 && index < path.length - 1) {
+                cells[state].classList.add('path');
+            }
             if (index > 0) {
                 const prevState = path[index - 1];
                 cells[prevState].classList.remove('current');
@@ -466,8 +470,28 @@ function visualizePath(path) {
             if (index < path.length - 1) {
                 cells[state].classList.add('current');
             }
-        }, index * 200);
+            createRippleEffect({ target: cells[state] });
+        }, index * 300);
     });
+}
+
+function createRippleEffect(event) {
+    const cell = event.target;
+    const ripple = document.createElement('div');
+    ripple.classList.add('ripple');
+    
+    const size = Math.max(cell.offsetWidth, cell.offsetHeight);
+    ripple.style.width = ripple.style.height = `${size}px`;
+    
+    const rect = cell.getBoundingClientRect();
+    ripple.style.left = `${event.clientX - rect.left - size / 2}px`;
+    ripple.style.top = `${event.clientY - rect.top - size / 2}px`;
+    
+    cell.appendChild(ripple);
+    
+    setTimeout(() => {
+        ripple.remove();
+    }, 2000);
 }
 
 document.getElementById('create-board').addEventListener('click', createGameBoard);
